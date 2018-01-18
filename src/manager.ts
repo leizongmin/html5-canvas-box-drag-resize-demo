@@ -40,7 +40,15 @@ namespace LCB {
 
     private drawAllBoxes() {
       this.ctx2d.clearRect(0, 0, this.element.width, this.element.height);
-      this.boxStack.forEach(box => box.render(this.ctx2d));
+      let isReady = true;
+      this.boxStack.forEach(box => {
+        box.render(this.ctx2d);
+        isReady = isReady && box.isReady;
+      });
+      this.snapshots = [];
+      if (!isReady) {
+        requestAnimationFrame(() => this.drawAllBoxes());
+      }
     }
 
     private setupCanvas(element: HTMLCanvasElement): void {
@@ -52,15 +60,23 @@ namespace LCB {
         const box = this.findBoxAtPoint(e.layerX, e.layerY);
         if (box) {
           this.capture();
+          this.boxStack.forEach(box => box.setNormal());
           this.selectedBox = box;
           box.setEditable(this.ctx2d);
           console.log("select box", box);
+        } else {
+          if (this.selectedBox) {
+            this.selectedBox.setNormal();
+            this.selectedBox = null;
+            this.drawAllBoxes();
+          }
         }
       });
       this.element.addEventListener("mousemove", e => {
         // console.log("mousemove", e, e.buttons);
         if (e.buttons === 1 && this.selectedBox) {
           this.restore();
+          this.boxStack.forEach(box => box.setNormal());
           const box = this.selectedBox;
           const rect = box.getRect();
           rect.left += e.movementX;
@@ -71,8 +87,9 @@ namespace LCB {
       });
       this.element.addEventListener("mouseup", e => {
         // console.log('mouseup', e);
-        this.selectedBox = null;
-        this.drawAllBoxes();
+        if (this.selectedBox) {
+          this.drawAllBoxes();
+        }
       });
     }
 

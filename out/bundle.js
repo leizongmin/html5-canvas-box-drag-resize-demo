@@ -21,6 +21,7 @@ var LCB;
     LCB.getLineDash = getLineDash;
     class Box {
         constructor() {
+            this.isReady = false;
             this.props = getInitialBoxProps();
             this.renderFn = emptyBoxRenderFunction;
             this.isEditing = false;
@@ -53,14 +54,14 @@ var LCB;
             const rect = this.props.rect;
             const border = this.props.border;
             ctx.save();
-            ctx.globalAlpha = 0.05;
-            ctx.fillStyle = 'black';
-            ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
-            ctx.globalAlpha = 1;
-            LCB.Utils.drawRectLine(ctx, rect.left, rect.top, rect.width, rect.height, "black");
+            // ctx.globalAlpha = 0.05;
+            // ctx.fillStyle = 'black';
+            // ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+            // ctx.globalAlpha = 1;
+            LCB.Utils.drawRectLine(ctx, rect.left, rect.top, rect.width, rect.height, "blue");
             const pw = 6;
             const pwh = pw / 2;
-            ctx.fillStyle = "black";
+            ctx.fillStyle = "blue";
             ctx.fillRect(rect.left - pwh, rect.top - pwh, pw, pw);
             ctx.fillRect(rect.left + rect.width - pwh, rect.top - pwh, pw, pw);
             ctx.fillRect(rect.left - pwh, rect.top + rect.height - pwh, pw, pw);
@@ -80,6 +81,9 @@ var LCB;
             ctx.save();
             this.renderFn(ctx, rect, this);
             ctx.restore();
+            if (this.isEditing) {
+                this.drawEditableBorder(ctx);
+            }
         }
     }
     LCB.Box = Box;
@@ -90,6 +94,7 @@ window.addEventListener("load", function () {
     if (ctx) {
         const m = new LCB.Manager();
         const b1 = new LCB.Box();
+        b1.isReady = true;
         b1.setRect({ top: 100, left: 100 });
         b1.setFunction(function (ctx, rect, box) {
             ctx.font = "18px serif";
@@ -97,6 +102,7 @@ window.addEventListener("load", function () {
         });
         m.add(b1);
         const b2 = new LCB.Box();
+        b2.isReady = true;
         b2.setRect({ top: 200, left: 300 });
         b2.setFunction(function (ctx, rect, box) {
             ctx.beginPath();
@@ -108,6 +114,16 @@ window.addEventListener("load", function () {
             ctx.fillText("hello, world", rect.left + rect.width / 2 - 20, rect.top + rect.height / 2);
         });
         m.add(b2);
+        const b3 = new LCB.ImageBox();
+        b3.setRect({ top: 50, left: 200, width: 200, height: 100 });
+        b3.setImage("assets/bd_logo1.png");
+        m.add(b3);
+        const b4 = new LCB.TextBox();
+        b4.setRect({ top: 100, left: 200, width: 200, height: 100 });
+        b4.setText("This is test");
+        b4.setFont("24px serif");
+        b4.setColor("green");
+        m.add(b4);
         m.renderTo("canvas");
     }
 });
@@ -149,7 +165,15 @@ var LCB;
         }
         drawAllBoxes() {
             this.ctx2d.clearRect(0, 0, this.element.width, this.element.height);
-            this.boxStack.forEach(box => box.render(this.ctx2d));
+            let isReady = true;
+            this.boxStack.forEach(box => {
+                box.render(this.ctx2d);
+                isReady = isReady && box.isReady;
+            });
+            this.snapshots = [];
+            if (!isReady) {
+                requestAnimationFrame(() => this.drawAllBoxes());
+            }
         }
         setupCanvas(element) {
             this.element = element;
@@ -159,15 +183,24 @@ var LCB;
                 const box = this.findBoxAtPoint(e.layerX, e.layerY);
                 if (box) {
                     this.capture();
+                    this.boxStack.forEach(box => box.setNormal());
                     this.selectedBox = box;
                     box.setEditable(this.ctx2d);
                     console.log("select box", box);
+                }
+                else {
+                    if (this.selectedBox) {
+                        this.selectedBox.setNormal();
+                        this.selectedBox = null;
+                        this.drawAllBoxes();
+                    }
                 }
             });
             this.element.addEventListener("mousemove", e => {
                 // console.log("mousemove", e, e.buttons);
                 if (e.buttons === 1 && this.selectedBox) {
                     this.restore();
+                    this.boxStack.forEach(box => box.setNormal());
                     const box = this.selectedBox;
                     const rect = box.getRect();
                     rect.left += e.movementX;
@@ -178,8 +211,9 @@ var LCB;
             });
             this.element.addEventListener("mouseup", e => {
                 // console.log('mouseup', e);
-                this.selectedBox = null;
-                this.drawAllBoxes();
+                if (this.selectedBox) {
+                    this.drawAllBoxes();
+                }
             });
         }
         findBoxAtPoint(left, top) {
@@ -227,5 +261,58 @@ var LCB;
             drawVerticalLine(ctx, left + width, top, height, color);
         }
         Utils.drawRectLine = drawRectLine;
+        function getRectCenter(rect) {
+            const hw = rect.width / 2;
+            const hh = rect.height / 2;
+            return { left: rect.left + hw, top: rect.top + hh };
+        }
+        Utils.getRectCenter = getRectCenter;
     })(Utils = LCB.Utils || (LCB.Utils = {}));
+})(LCB || (LCB = {}));
+var LCB;
+(function (LCB) {
+    class ImageBox extends LCB.Box {
+        constructor() {
+            super();
+            this.setFunction((ctx, rect, box) => {
+                const img = this.image;
+                ctx.drawImage(img, 0, 0, img.width, img.height, rect.left, rect.top, rect.width, rect.height);
+            });
+        }
+        setImage(src) {
+            this.imageSrc = src;
+            this.image = document.createElement("img");
+            this.image.src = src;
+            this.image.onload = () => {
+                this.isReady = true;
+            };
+        }
+    }
+    LCB.ImageBox = ImageBox;
+})(LCB || (LCB = {}));
+var LCB;
+(function (LCB) {
+    class TextBox extends LCB.Box {
+        constructor() {
+            super();
+            this.setFunction((ctx, rect, box) => {
+                const center = LCB.Utils.getRectCenter(rect);
+                ctx.font = this.font;
+                ctx.textAlign = "center";
+                ctx.fillStyle = this.color;
+                ctx.fillText(this.text, center.left, center.top, rect.width);
+            });
+        }
+        setText(text) {
+            this.text = text;
+            this.isReady = true;
+        }
+        setFont(font) {
+            this.font = font;
+        }
+        setColor(color) {
+            this.color = color;
+        }
+    }
+    LCB.TextBox = TextBox;
 })(LCB || (LCB = {}));

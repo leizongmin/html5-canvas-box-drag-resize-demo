@@ -47,6 +47,8 @@ namespace LCB {
   }
 
   export class Box {
+    public isReady: boolean = false;
+
     private props: BoxProps = getInitialBoxProps();
     private renderFn: BoxRenderFunction = emptyBoxRenderFunction;
     private isEditing: boolean = false;
@@ -77,10 +79,10 @@ namespace LCB {
       const border = this.props.border;
 
       ctx.save();
-      ctx.globalAlpha = 0.05;
-      ctx.fillStyle = 'black';
-      ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
-      ctx.globalAlpha = 1;
+      // ctx.globalAlpha = 0.05;
+      // ctx.fillStyle = 'black';
+      // ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+      // ctx.globalAlpha = 1;
 
       Utils.drawRectLine(
         ctx,
@@ -88,11 +90,11 @@ namespace LCB {
         rect.top,
         rect.width,
         rect.height,
-        "black"
+        "blue"
       );
       const pw = 6;
       const pwh = pw / 2;
-      ctx.fillStyle = "black";
+      ctx.fillStyle = "blue";
       ctx.fillRect(rect.left - pwh, rect.top - pwh, pw, pw);
       ctx.fillRect(rect.left + rect.width - pwh, rect.top - pwh, pw, pw);
       ctx.fillRect(rect.left - pwh, rect.top + rect.height - pwh, pw, pw);
@@ -121,6 +123,9 @@ namespace LCB {
       ctx.save();
       this.renderFn(ctx, rect, this);
       ctx.restore();
+      if (this.isEditing) {
+        this.drawEditableBorder(ctx);
+      }
     }
   }
 }

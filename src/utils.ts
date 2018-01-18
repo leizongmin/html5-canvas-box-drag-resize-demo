@@ -35,5 +35,11 @@ namespace LCB {
       drawVerticalLine(ctx, left, top, height, color);
       drawVerticalLine(ctx, left + width, top, height, color);
     }
+
+    export function getRectCenter(rect: Rect): Point {
+      const hw = rect.width / 2;
+      const hh = rect.height / 2;
+      return { left: rect.left + hw, top: rect.top + hh };
+    }
   }
 }
