@@ -4,11 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "npm run build && anywhere",
+    "build": "rm -rf out && tsc"
   },
   "author": "Zongmin Lei <leizongmin@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "anywhere": "^1.4.0",
     "prettier": "^1.10.2",
     "typescript": "^2.6.2"
   }
