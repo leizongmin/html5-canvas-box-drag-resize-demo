@@ -1,22 +1,12 @@
 namespace LCB {
-  export function pointInsideRect(
-    left: number,
-    top: number,
-    rect: Rect
-  ): boolean {
-    if (left < rect.left) return false;
-    if (left > rect.left + rect.width) return false;
-    if (top < rect.top) return false;
-    if (top > rect.top + rect.height) return false;
-    return true;
-  }
-
   export class Manager {
     public element: HTMLCanvasElement;
 
     private ctx2d: Context2D;
     private boxStack: Box[] = [];
     private selectedBox: Box | null = null;
+    private selectedBoxCornerName: CornerName | null;
+    private selectedBoxResizing: boolean = false;
     private snapshots: ImageData[] = [];
 
     public add(box: Box): void {
@@ -56,37 +46,90 @@ namespace LCB {
       this.ctx2d = this.element.getContext("2d") as Context2D;
 
       this.element.addEventListener("mousedown", e => {
-        // console.log('mousedown', e);
-        const box = this.findBoxAtPoint(e.layerX, e.layerY);
+        const left = e.layerX;
+        const top = e.layerY;
+
+        // 如果当前已有选中的 box，并且当前点击落在该 box 上，则不需要在检查是否在其他 box 上
+        // 以保证当前已选择的 box 不会被更高层级的相同区域的 box 抢占焦点
+        if (
+          this.selectedBox &&
+          Utils.pointInsideRect(left, top, this.selectedBox.getRect())
+        ) {
+          // 重新检查是否落在四个顶点，以便重置缩放状态
+          const cornerName = Utils.pointInsideCorner(
+            left,
+            top,
+            this.selectedBox.getCorners()
+          );
+          this.selectedBoxCornerName = cornerName || null;
+          this.selectedBoxResizing = cornerName ? true : false;
+          return;
+        }
+
+        // 查找是否落在某个 box 范围内
+        // 如果是，则将其设置为当前选中的 box，被设置为移动位置状态
+        // 否则检查是否落在当前已选中 box 的四个顶点上，是则设置为缩放状态
+        const box = this.findBoxAtPoint(left, top);
         if (box) {
           this.capture();
           this.boxStack.forEach(box => box.setNormal());
           this.selectedBox = box;
           box.setEditable(this.ctx2d);
-          console.log("select box", box);
+          const cornerName = Utils.pointInsideCorner(
+            left,
+            top,
+            box.getCorners()
+          );
+          this.selectedBoxCornerName = cornerName || null;
+          this.selectedBoxResizing = cornerName ? true : false;
+          console.log("select box", box, cornerName);
         } else {
           if (this.selectedBox) {
-            this.selectedBox.setNormal();
-            this.selectedBox = null;
-            this.drawAllBoxes();
+            const cornerName = Utils.pointInsideCorner(
+              left,
+              top,
+              this.selectedBox.getCorners()
+            );
+            if (cornerName) {
+              this.selectedBoxCornerName = cornerName;
+              this.selectedBoxResizing = true;
+            } else {
+              this.selectedBox.setNormal();
+              this.selectedBox = null;
+              this.selectedBoxCornerName = null;
+              this.selectedBoxResizing = false;
+              this.drawAllBoxes();
+            }
           }
         }
       });
+
       this.element.addEventListener("mousemove", e => {
-        // console.log("mousemove", e, e.buttons);
+        // 仅当鼠标移动且左键被按下，当前有选中的 box 时才需要做检查
         if (e.buttons === 1 && this.selectedBox) {
           this.restore();
           this.boxStack.forEach(box => box.setNormal());
           const box = this.selectedBox;
           const rect = box.getRect();
-          rect.left += e.movementX;
-          rect.top += e.movementY;
+          if (this.selectedBoxResizing && this.selectedBoxCornerName) {
+            // 缩放状态，需要判断是哪个短点以便进行相应的运算
+            Utils.resizeRectByCornerName(
+              rect,
+              this.selectedBoxCornerName,
+              e.movementX,
+              e.movementY
+            );
+          } else {
+            // 移动位置
+            rect.left += e.movementX;
+            rect.top += e.movementY;
+          }
           box.setRect(rect);
           box.setEditable(this.ctx2d);
         }
       });
+
       this.element.addEventListener("mouseup", e => {
-        // console.log('mouseup', e);
         if (this.selectedBox) {
           this.drawAllBoxes();
         }
@@ -96,7 +139,7 @@ namespace LCB {
     private findBoxAtPoint(left: number, top: number): Box | undefined {
       for (let i = this.boxStack.length - 1; i >= 0; i--) {
         const box = this.boxStack[i];
-        if (pointInsideRect(left, top, box.getRect())) {
+        if (Utils.pointInsideRect(left, top, box.getRect())) {
           return box;
         }
       }
@@ -112,11 +155,7 @@ namespace LCB {
     private restore(): void {
       const data = this.snapshots.pop();
       if (data) {
-        this.ctx2d.putImageData(
-          data,
-          0,
-          0
-        );
+        this.ctx2d.putImageData(data, 0, 0);
       } else {
         this.drawAllBoxes();
       }

@@ -18,12 +18,55 @@ namespace LCB {
   export interface BoxProps {
     rect: Rect;
     border: Border;
+    corners: Corners;
   }
 
+  export interface Corners {
+    leftTop: Rect;
+    rightTop: Rect;
+    leftBottom: Rect;
+    rightBottom: Rect;
+  }
+
+  export type CornerName = keyof Corners;
+
   export function getInitialBoxProps(): BoxProps {
+    const rect = { top: 10, left: 10, width: 100, height: 100 };
     return {
-      rect: { top: 10, left: 10, width: 100, height: 100 },
-      border: { width: 1, color: "rgb(0,0,255)", style: "line" }
+      rect,
+      border: { width: 1, color: "rgb(0,0,255)", style: "line" },
+      corners: getRectCorners(rect)
+    };
+  }
+
+  export function getRectCorners(rect: Rect): Corners {
+    const pw = 6;
+    const pwh = pw / 2;
+    return {
+      leftTop: {
+        left: rect.left - pwh,
+        top: rect.top - pwh,
+        width: pw,
+        height: pw
+      },
+      rightTop: {
+        left: rect.left + rect.width - pwh,
+        top: rect.top - pwh,
+        width: pw,
+        height: pw
+      },
+      leftBottom: {
+        left: rect.left - pwh,
+        top: rect.top + rect.height - pwh,
+        width: pw,
+        height: pw
+      },
+      rightBottom: {
+        left: rect.left + rect.width - pwh,
+        top: rect.top + rect.height - pwh,
+        width: pw,
+        height: pw
+      }
     };
   }
 
@@ -57,11 +100,16 @@ namespace LCB {
       return this.props.rect;
     }
 
+    public getCorners(): Corners {
+      return this.props.corners;
+    }
+
     public setRect(rect: Partial<Rect>): void {
       if ("left" in rect) this.props.rect.left = rect.left as number;
       if ("top" in rect) this.props.rect.top = rect.top as number;
       if ("width" in rect) this.props.rect.width = rect.width as number;
       if ("height" in rect) this.props.rect.height = rect.height as number;
+      this.props.corners = getRectCorners(this.props.rect);
     }
 
     public setBorder(border: Partial<Border>): void {
@@ -76,6 +124,7 @@ namespace LCB {
 
     private drawEditableBorder(ctx: Context2D) {
       const rect = this.props.rect;
+      const corners = this.props.corners;
       const border = this.props.border;
 
       ctx.save();
@@ -90,20 +139,17 @@ namespace LCB {
         rect.top,
         rect.width,
         rect.height,
-        "blue"
+        "black",
+        0.5
       );
-      const pw = 6;
-      const pwh = pw / 2;
-      ctx.fillStyle = "blue";
-      ctx.fillRect(rect.left - pwh, rect.top - pwh, pw, pw);
-      ctx.fillRect(rect.left + rect.width - pwh, rect.top - pwh, pw, pw);
-      ctx.fillRect(rect.left - pwh, rect.top + rect.height - pwh, pw, pw);
-      ctx.fillRect(
-        rect.left + rect.width - pwh,
-        rect.top + rect.height - pwh,
-        pw,
-        pw
-      );
+      ctx.fillStyle = "black";
+      const fillRect = (r: Rect) => {
+        ctx.fillRect(r.left, r.top, r.width, r.height);
+      };
+      fillRect(corners.leftTop);
+      fillRect(corners.leftBottom);
+      fillRect(corners.rightTop);
+      fillRect(corners.rightBottom);
 
       ctx.restore();
     }
@@ -126,6 +172,10 @@ namespace LCB {
       if (this.isEditing) {
         this.drawEditableBorder(ctx);
       }
+    }
+
+    public getControlTypeByPoint(left: number, top: number) {
+      const rect = this.props.rect;
     }
   }
 }
