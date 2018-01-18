@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "rootDir": "src",
+    "outFile": "out/bundle.js",
+    "strict": true
+  }
+}

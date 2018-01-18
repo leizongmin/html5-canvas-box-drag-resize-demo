@@ -1,0 +1,15 @@
+{
+  "name": "canvas-object-manager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Zongmin Lei <leizongmin@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "^1.10.2",
+    "typescript": "^2.6.2"
+  }
+}
